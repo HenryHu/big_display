@@ -1,7 +1,13 @@
 #include <Arduino.h>
 
+#include <string>
+
+#define ARDUINO_HTTP_SERVER_NO_BASIC_AUTH
+
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 #include <InterruptButton.h>
+#include <ArduinoHttpServer.h>
+#include <WiFi.h>
 
 #include "constants.h"
 
@@ -31,20 +37,15 @@ uint16_t myBLUE = display->color565(0, 0, 255);
 InterruptButton button0(0, LOW);
 InterruptButton button1(35, LOW);
 
-int brightness = 1;
+WiFiServer server(SERVER_PORT);
 
-void button1_press() {
-    brightness = (brightness + 16) % 256;
-    display->setBrightness8(brightness);
+void PrintStatus(const std::string& status) {
+    display->fillRect(0, 0, display->width(), 8, display->color444(0, 0, 0));
+    display->setCursor(0, 0);
+    display->print(status.c_str());
 }
 
-void button0_press() {
-}
-
-void setup() {
-
-    Serial.begin(115200);
-
+void InitDisplay() {
     HUB75_I2S_CFG::i2s_pins _pins={R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN};
     HUB75_I2S_CFG mxconfig(
             64, // Module width
@@ -58,17 +59,57 @@ void setup() {
     display->fillScreen(display->color565(0, 0, 0));
     display->setBrightness8(31);
     display->setTextWrap(false); // Don't wrap at end of line - will do ourselves
+}
 
-    display->println("HelloWorld!");
+void InitWifi() {
+    PrintStatus(WIFI_SSID);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        PrintStatus("Connecting");
+    }
+    PrintStatus("Connected");
+    delay(500);
+    PrintStatus(std::string("IP: ") + std::string(WiFi.localIP().toString().c_str()).substr(8));
+    delay(500);
 
+    server.begin();
+}
+
+int brightness = 1;
+
+void button1_press() {
+    brightness = (brightness + 16) % 256;
+    display->setBrightness8(brightness);
+}
+
+void button0_press() {
+}
+
+void setup() {
+    Serial.begin(115200);
+
+    InitDisplay();
+    InitWifi();
     button0.bind(Event_KeyPress, &button0_press);
     button1.bind(Event_KeyPress, &button1_press);
 }
 
 void loop() {
-    button0.processSyncEvents();
-    button1.processSyncEvents();
+    WiFiClient client = server.available();
 
+    if (client) {
+        ArduinoHttpServer::StreamHttpRequest<512> request(client);
+        const bool success = request.readRequest();
+        if (success) {
+            const ArduinoHttpServer::HttpResource& resource = request.getResource();
+            PrintStatus(resource.toString().c_str());
+
+            ArduinoHttpServer::StreamHttpReply reply(client, "text/plain");
+            reply.send("");
+        }
+        client.stop();
+    }
     delay(20);
 }
 
