@@ -4,3 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 constants.h
+local_config.py
+compile_commands.json
+__pycache__
