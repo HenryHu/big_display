@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include <string>
+#include <memory>
 
 #define ARDUINO_HTTP_SERVER_NO_BASIC_AUTH
 
@@ -10,54 +11,34 @@
 #include <WiFi.h>
 
 #include "constants.h"
-
-#define R1_PIN 27
-#define G1_PIN 26
-#define B1_PIN 25
-#define R2_PIN 33
-#define G2_PIN -1
-#define B2_PIN -1
-#define A_PIN 12
-#define B_PIN 13
-#define C_PIN 15
-#define D_PIN 2
-#define E_PIN 32 // required for 1/32 scan panels, like 64x64px. Any available pin would do, i.e. IO32
-#define CLK_PIN 17
-#define LAT_PIN 22
-#define OE_PIN 21
+#include "util.h"
+#include "cmds.h"
+#include "display.h"
 
 MatrixPanel_I2S_DMA *display = nullptr;
 
-uint16_t myBLACK = display->color565(0, 0, 0);
-uint16_t myWHITE = display->color565(255, 255, 255);
-uint16_t myRED = display->color565(255, 0, 0);
-uint16_t myGREEN = display->color565(0, 255, 0);
-uint16_t myBLUE = display->color565(0, 0, 255);
+using HttpRequest = ArduinoHttpServer::StreamHttpRequest<16384>;
+using HttpReply = ArduinoHttpServer::StreamHttpReply;
+
+const uint16_t BLACK = MatrixPanel_I2S_DMA::color565(0, 0, 0);
+const uint16_t WHITE = MatrixPanel_I2S_DMA::color565(255, 255, 255);
+const uint16_t RED = MatrixPanel_I2S_DMA::color565(255, 0, 0);
+const uint16_t GREEN = MatrixPanel_I2S_DMA::color565(0, 255, 0);
+const uint16_t BLUE = MatrixPanel_I2S_DMA::color565(0, 0, 255);
 
 InterruptButton button0(0, LOW);
 InterruptButton button1(35, LOW);
 
 WiFiServer server(SERVER_PORT);
 
-void PrintStatus(const std::string& status) {
-    display->fillRect(0, 0, display->width(), 8, display->color444(0, 0, 0));
-    display->setCursor(0, 0);
-    display->print(status.c_str());
-}
+int brightness = 31;
 
 void InitDisplay() {
-    HUB75_I2S_CFG::i2s_pins _pins={R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN};
-    HUB75_I2S_CFG mxconfig(
-            64, // Module width
-            64, // Module height
-            1, // chain length
-            _pins // pin mapping
-            );
-    display = new MatrixPanel_I2S_DMA(mxconfig);
+    display = GetDisplay();
     display->begin();
     display->clearScreen();
     display->fillScreen(display->color565(0, 0, 0));
-    display->setBrightness8(31);
+    display->setBrightness8(brightness);
     display->setTextWrap(false); // Don't wrap at end of line - will do ourselves
 }
 
@@ -68,15 +49,11 @@ void InitWifi() {
         delay(500);
         PrintStatus("Connecting");
     }
-    PrintStatus("Connected");
-    delay(500);
-    PrintStatus(std::string("IP: ") + std::string(WiFi.localIP().toString().c_str()).substr(8));
+    PrintStatus(std::string("IP: ") + WiFi.localIP().toString().substring(8).c_str());
     delay(500);
 
     server.begin();
 }
-
-int brightness = 1;
 
 void button1_press() {
     brightness = (brightness + 16) % 256;
@@ -95,19 +72,56 @@ void setup() {
     button1.bind(Event_KeyPress, &button1_press);
 }
 
+std::string HandleGet(const HttpRequest& request) {
+    const ArduinoHttpServer::HttpResource& resource = request.getResource();
+    const auto cmd = resource[0];
+    if (cmd == "text") {
+        return HandleText(resource);
+    } else if (cmd == "dot") {
+        return HandleDot(resource);
+    } else if (cmd == "clear") {
+        return HandleClear(resource);
+    }
+    return "unknown function";
+}
+
+std::string HandlePost(const HttpRequest& request) {
+    const ArduinoHttpServer::HttpResource& resource = request.getResource();
+    if (resource[0] == "bitmap") {
+        return HandleBitmap(resource, request.getBody(), request.getContentLength());
+    }
+
+    return "unknown function";
+}
+
+void HandleClient(WiFiClient& client) {
+    std::unique_ptr<HttpRequest> request(new HttpRequest(client));
+    const bool success = request->readRequest();
+    if (!success) return;
+
+    const ArduinoHttpServer::Method method = request->getMethod();
+
+    std::string status = "unknown method";
+    if (method == ArduinoHttpServer::Method::Get) {
+        status = HandleGet(*request);
+    } else if (method == ArduinoHttpServer::Method::Post) {
+        status = HandlePost(*request);
+    }
+
+    if (status == "ok") {
+        HttpReply reply(client, "text/plain");
+        reply.send(status.c_str());
+    } else {
+        ArduinoHttpServer::StreamHttpErrorReply reply(client, "text/plain", "500");
+        reply.send(status.c_str());
+    }
+}
+
 void loop() {
     WiFiClient client = server.available();
 
     if (client) {
-        ArduinoHttpServer::StreamHttpRequest<512> request(client);
-        const bool success = request.readRequest();
-        if (success) {
-            const ArduinoHttpServer::HttpResource& resource = request.getResource();
-            PrintStatus(resource.toString().c_str());
-
-            ArduinoHttpServer::StreamHttpReply reply(client, "text/plain");
-            reply.send("");
-        }
+        HandleClient(client);
         client.stop();
     }
     delay(20);
