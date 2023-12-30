@@ -6,8 +6,8 @@ import sys
 
 import local_config
 
-TARGET_HEIGHT = 32
-TARGET_WIDTH = 64
+TARGET_HEIGHT = local_config.HEIGHT
+TARGET_WIDTH = local_config.WIDTH
 
 img = Image.open(sys.argv[1])
 print(img.getbbox())
@@ -23,9 +23,12 @@ def scale_size(w, h, tw, th):
 
 (w, h) = scale_size(img.width, img.height, TARGET_WIDTH, TARGET_HEIGHT)
 img = img.resize((w, h))
-print("output image:", w, " x ", h)
+print("scaled image:", w, " x ", h)
 
-data = list(img.getdata())
+canvas = Image.new('RGB', (TARGET_WIDTH, TARGET_HEIGHT))
+canvas.paste(img, ((canvas.width - img.width) // 2, (canvas.height - img.height) // 2))
+
+data = list(canvas.getdata())
 
 if len(sys.argv) < 3:
     filename = 'out.bmp'
@@ -34,9 +37,9 @@ else:
 
 outf = open(filename, 'wb')
 
-for x in range(img.width):
-    for y in range(img.height):
-        point = data[x * img.height + y]
+for x in range(canvas.width):
+    for y in range(canvas.height):
+        point = data[x * canvas.height + y]
 
         if type(point) == int:
             outf.write(bytes([point * 255]))
