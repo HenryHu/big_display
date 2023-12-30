@@ -1,5 +1,7 @@
 #include "display.h"
 
+/*
+ * For ESP32 TTGO
 #define R1_PIN 27
 #define G1_PIN 26
 #define B1_PIN 25
@@ -14,6 +16,23 @@
 #define CLK_PIN 17
 #define LAT_PIN 22
 #define OE_PIN 21
+*/
+
+// For ESP32 Dev Board
+#define R1_PIN 15
+#define G1_PIN 2
+#define B1_PIN 12
+#define R2_PIN 4
+#define G2_PIN 16
+#define B2_PIN 17
+#define A_PIN 18
+#define B_PIN 19
+#define C_PIN 14
+#define D_PIN 27
+#define E_PIN 5
+#define CLK_PIN 26
+#define LAT_PIN 25
+#define OE_PIN 23
 
 MatrixPanel_I2S_DMA* GetDisplay() {
     HUB75_I2S_CFG::i2s_pins _pins={R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN};
