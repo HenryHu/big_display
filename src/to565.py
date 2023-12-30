@@ -49,5 +49,4 @@ for x in range(canvas.width):
             outf.write(bytes([((point[1] & 0x1c) << 3) | ((point[2] & 0xf8) >> 3)]))
 
 outf.close()
-
-subprocess.check_call(["curl", "http://%s/bitmap/0/0/%d/%d" % (local_config.LOCAL_IP, w, h), "--data-binary", "@%s" % filename])
+print("output image:", canvas.width, " x ", canvas.height)
