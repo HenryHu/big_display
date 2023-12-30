@@ -1,74 +1,162 @@
-#include <string>
+#include "headers.h"
 
+#include "display.h"
 #include "main.h"
 #include "util.h"
-#include "cmds.h"
 
-std::string HandleClear(const ArduinoHttpServer::HttpResource& resource) {
-    const String x_str = resource[1];
-    const String y_str = resource[2];
-    const String w_str = resource[3];
-    const String h_str = resource[4];
-
-    int w = w_str.toInt();
-    int h = h_str.toInt();
-    if (w == 0) w = display->width();
-    if (h == 0) w = display->height();
-    display->fillRect(x_str.toInt(), y_str.toInt(), w, h, BLACK);
-    return "ok";
+void HandleClear(AsyncWebServerRequest *request) {
+    int x = 0, y = 0, w = 0, h = 0;
+    if (request->hasParam("x")) {
+        x = request->getParam("x")->value().toInt();
+    }
+    if (request->hasParam("y")) {
+        y = request->getParam("y")->value().toInt();
+    }
+    if (request->hasParam("w")) {
+        w = request->getParam("w")->value().toInt();
+    } else {
+        w = display->width();
+    }
+    if (request->hasParam("h")) {
+        h = request->getParam("h")->value().toInt();
+    } else {
+        w = display->height();
+    }
+    if (x < 0 || y < 0 || w < 0 || h < 0 || x >= display->width() || y >= display->height()) {
+        request->send(400, "text/plain", "input args out of range");
+        return;
+    }
+    display->fillRect(x, y, w, h, BLACK);
+    request->send(200, "text/plain", "ok");
 }
 
-std::string HandleText(const ArduinoHttpServer::HttpResource& resource) {
-    const String x_str = resource[1];
-    const String y_str = resource[2];
-    const String text = resource[3];
+void HandleText(AsyncWebServerRequest *request) {
+    if (!request->hasParam("text")) {
+        request->send(404, "text/plain", "text param missing");
+        return;
+    }
+    const std::string text = request->getParam("text")->value().c_str();
 
-    const String r_str = resource[4];
-    const String g_str = resource[5];
-    const String b_str = resource[6];
-    uint16_t color = display->color565(r_str.toInt(), g_str.toInt(), b_str.toInt());
-    if (color == BLACK) color = WHITE;
-
-    TextOut(x_str.toInt(), y_str.toInt(), text.c_str(), color);
-
-    return "ok";
-}
-
-std::string HandleDot(const ArduinoHttpServer::HttpResource& resource) {
-    const String x_str = resource[1];
-    const String y_str = resource[2];
-
-    const String r_str = resource[3];
-    const String g_str = resource[4];
-    const String b_str = resource[5];
-    uint16_t color = display->color565(r_str.toInt(), g_str.toInt(), b_str.toInt());
-    display->drawPixel(x_str.toInt(), y_str.toInt(), color);
-
-    return "ok";
-}
-
-std::string HandleBitmap(const ArduinoHttpServer::HttpResource& resource, const char* body, const int length) {
-    const String x_str = resource[1];
-    const String y_str = resource[2];
-    const String w_str = resource[3];
-    const String h_str = resource[4];
-
-    const int w = w_str.toInt();
-    const int h = h_str.toInt();
-
-    if (length < w * h * 2) return std::string("body too short: ") + String(length).c_str();
-
-    std::vector<int> *bitmap = new std::vector<int>();
-    bitmap->reserve(w * h);
-    for (int x = 0; x < w; ++x) {
-        for (int y = 0; y < h; ++y) {
-            const int offset = (x * h + y) * 2;
-            bitmap->push_back(body[offset] << 8 | body[offset + 1]);
-        }
+    int x = 0, y = 0, r = 0, g = 0, b = 0;
+    if (request->hasParam("x")) {
+        x = request->getParam("x")->value().toInt();
+    }
+    if (request->hasParam("y")) {
+        y = request->getParam("y")->value().toInt();
+    }
+    if (request->hasParam("r")) {
+        r = request->getParam("r")->value().toInt();
+    }
+    if (request->hasParam("g")) {
+        g = request->getParam("g")->value().toInt();
+    }
+    if (request->hasParam("b")) {
+        b = request->getParam("b")->value().toInt();
+    }
+    if (x < 0 || y < 0 || x >= display->width() || y >= display->height()) {
+        request->send(400, "text/plain", "input args out of range");
+        return;
     }
 
-    display->drawIcon(bitmap->data(), x_str.toInt(), y_str.toInt(), w, h);
-    delete bitmap;
+    uint16_t color = display->color565(r, g, b);
+    if (color == BLACK) color = WHITE;
 
-    return "ok";
+    TextOut(x, y, text, color);
+
+    request->send(200, "text/plain", "ok");
+}
+
+void HandleDot(AsyncWebServerRequest *request) {
+    int x = 0, y = 0, r = 0, g = 0, b = 0;
+    if (request->hasParam("x")) {
+        x = request->getParam("x")->value().toInt();
+    }
+    if (request->hasParam("y")) {
+        y = request->getParam("y")->value().toInt();
+    }
+    if (request->hasParam("r")) {
+        r = request->getParam("r")->value().toInt();
+    }
+    if (request->hasParam("g")) {
+        g = request->getParam("g")->value().toInt();
+    }
+    if (request->hasParam("b")) {
+        b = request->getParam("b")->value().toInt();
+    }
+    if (x < 0 || y < 0 || x >= display->width() || y >= display->height()) {
+        request->send(400, "text/plain", "input args out of range");
+        return;
+    }
+
+    const uint16_t color = display->color565(r, g, b);
+    display->drawPixel(x, y, color);
+
+    request->send(200, "text/plain", "ok");
+}
+
+void HandleBitmap(AsyncWebServerRequest *request, uint8_t *data, size_t len,
+        size_t index, size_t total) {
+    Serial.printf("Body handler: %d %d %d\n\r", len, index, total);
+    int x = 0, y = 0, w = 0, h = 0;
+    if (request->hasParam("x")) {
+        x = request->getParam("x")->value().toInt();
+    }
+    if (request->hasParam("y")) {
+        y = request->getParam("y")->value().toInt();
+    }
+    if (request->hasParam("w")) {
+        w = request->getParam("w")->value().toInt();
+    } else {
+        w = display->width();
+    }
+    if (request->hasParam("h")) {
+        h = request->getParam("h")->value().toInt();
+    } else {
+        w = display->height();
+    }
+    if (x < 0 || y < 0 || w < 0 || h < 0 || x >= display->width() || y >= display->height()) {
+        if (index == 0) {
+            request->send(400, "text/plain", "input args out of range");
+        }
+        return;
+    }
+
+    if (total < w * h * 2) {
+        if (index == 0) {
+            request->send(400, "text/plain", String("body too short: ") + String(len));
+        }
+        return;
+    }
+
+    if (request->_tempObject == nullptr) {
+        request->_tempObject = malloc(total);
+    }
+
+    char* buf = (char*)request->_tempObject;
+    for (int i = 0; i < len; ++i) {
+        buf[i + index] = data[i];
+    }
+
+    if (len + index == total) {
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                const int offset = (y * w + x) * 2;
+                const uint16_t pixel = buf[offset] << 8 | buf[offset + 1];
+                display->drawPixel(x, y, pixel);
+            }
+        }
+
+        request->send(200, "text/plain", "ok");
+    }
+}
+
+void SetupServer(AsyncWebServer& server) {
+    server.on("/text", HTTP_ANY, HandleText);
+    server.on("/clear", HTTP_ANY, HandleClear);
+    server.on("/dot", HTTP_ANY, HandleDot);
+    server.on("/bitmap", HTTP_POST, [](AsyncWebServerRequest * request){
+            request->send(400, "text/plain", "incorrect request content type");
+            }, nullptr, HandleBitmap);
+
+    server.begin();
 }
