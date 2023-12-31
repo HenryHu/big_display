@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
+"""Updater to keep updating the big display."""
+# pylint: disable=too-few-public-methods,broad-except,too-many-arguments,too-many-locals
 
 import sys
 import time
 import json
 import io
 import datetime
+import logging
+
 import requests
 import local_config
-import logging
 import imagelib
 import paho.mqtt.client as mqtt
 from PIL import Image
 
 WHITE_COLOR = (255, 255, 255)
 
-class SensorData(object):
+class SensorData:
     temp = None
     humid = None
 
     def temp_str(self):
-        return "%.1fC" % self.temp
+        return f"{self.temp:.1f}C"
 
     def humid_str(self):
-        return "%.1f%%" % self.humid
+        return f"{self.humid:.1f}%"
 
-class DotWidget(object):
+class DotWidget:
     x = 0
     y = 0
 
@@ -34,13 +37,14 @@ class DotWidget(object):
 
     def update(self, r=255, g=255, b=255):
         try:
-            r = requests.post("http://%s/dot?x=%d&y=%d&r=%d&g=%d&b=%d" % (
-                local_config.LOCAL_IP, self.x, self.y, r,g, b))
+            r = requests.post(
+                f"{local_config.DISPLAY_URL}/dot?x={self.x}&y={self.y}&r={r}&g={g}&b={b}",
+                timeout=local_config.DISPLAY_TIMEOUT)
             r.close()
-        except Exception as we:
+        except Exception as e:
             logging.error(e)
 
-class ImageWidget(object):
+class ImageWidget:
     x = 0
     y = 0
     w = 0
@@ -55,10 +59,11 @@ class ImageWidget(object):
 
     def image(self, data):
         try:
-            r = requests.post("http://%s/bitmap?x=%d&y=%d&w=%d&h=%d" % (
-                local_config.LOCAL_IP, self.x, self.y, self.w, self.h), data=data)
+            r = requests.post(
+                f"{local_config.DISPLAY_URL}/bitmap?x={self.x}&y={self.y}&w={self.w}&h={self.h}",
+                data=data, timeout=local_config.DISPLAY_TIMEOUT)
             if r.content != b'ok':
-                print(r.content)
+                logging.error("fail to set image: %r", r.content)
             r.close()
         except Exception as e:
             logging.error(e)
@@ -67,7 +72,7 @@ class ImageWidget(object):
         data = imagelib.img_to_565(img, self.w, self.h)
         self.image(data)
 
-class TextWidget(object):
+class TextWidget:
     x = 0
     y = 0
     text = ''
@@ -78,8 +83,9 @@ class TextWidget(object):
 
     def text_out(self, x, y, text, r=255, g=255, b=255):
         try:
-            r = requests.get("http://%s/text?x=%d&y=%d&text=%s&r=%d&g=%d&b=%d" % (
-                local_config.LOCAL_IP, x, y, text, r, g, b), timeout=1)
+            r = requests.get(
+                f"local_config.DISPLAY_URL/text?x={x}&y={y}&text={text}&r={r}&g={g}&b={b}",
+                timeout=1)
             r.close()
         except Exception as e:
             logging.error(e)
@@ -91,8 +97,8 @@ class TextWidget(object):
             self.text_out(self.x, self.y, text, r, g, b)
             self.text = text
 
-class ColorPicker(object):
-    def pick(self, value):
+class ColorPicker:
+    def pick(self, _value):
         return WHITE_COLOR
 
     def current_color(self):
@@ -101,7 +107,7 @@ class ColorPicker(object):
 class RangedColorPicker(ColorPicker):
     color_map = None
     current_color = None
-    def __init__(self, color_map={}):
+    def __init__(self, color_map):
         self.color_map = color_map
         self.current_color = (255, 255, 255)
 
@@ -113,23 +119,21 @@ class RangedColorPicker(ColorPicker):
                 return color
         return None
 
-    def current_color(self):
-        return self.current_color
-
-class ColoredTextWidget(TextWidget):
+class ColoredTextWidget:
+    text_widget = None
     picker = None
     def __init__(self, x, y, picker):
-        TextWidget.__init__(self, x, y)
+        self.text_widget = TextWidget(x, y)
         self.picker = picker
 
     def update(self, text, value):
         color = self.picker.pick(value)
         if color is not None:
-            TextWidget.update(self, text, *color)
+            self.text_widget.update(text, *color)
         else:
-            TextWidget.update(self, text)
+            self.text_widget.update(text)
 
-class TextWithDotWidget(object):
+class TextWithDotWidget:
     first_part = None
     second_part = None
     dot_widget = None
@@ -159,7 +163,7 @@ class TextWithDotWidget(object):
             self.second_part.update('')
             self.first_part.update(text, *color)
 
-class SensorMqttClient(object):
+class SensorMqttClient:
     client = None
     topic = None
     sensor_data = None
@@ -168,7 +172,8 @@ class SensorMqttClient(object):
         self.topic = topic
         self.sensor_data = sensor_data
 
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(client_id=local_config.MQTT_CLIENT_ID,
+                                  clean_session=False)
         self.client.username_pw_set(user, password)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
@@ -176,14 +181,14 @@ class SensorMqttClient(object):
         self.client.connect(server)
         self.client.loop_start()
 
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, _userdata, _flags, rc):
         if rc != 0:
-            logging.error("MQTT connect error! rc=" + rc)
+            logging.error("MQTT connect error! rc=%d", rc)
             return
         logging.info("MQTT connected.")
         client.subscribe(self.topic)
 
-    def on_message(self, client, userdata, msg):
+    def on_message(self, _client, _userdata, msg):
         payload = msg.payload.decode('utf-8')
         logging.info(msg.topic, payload.split('&'))
         for part in payload.split('&'):
@@ -195,17 +200,20 @@ class SensorMqttClient(object):
 
 def update_weather(temp_widget, weather_icon_widget):
     try:
-        req = requests.get("http://api.weatherapi.com/v1/current.json?key=%s&q=%s&aqi=no" % (local_config.WEATHER_API_KEY, local_config.WEATHER_ZIPCODE))
+        req = requests.get(
+            "http://api.weatherapi.com/v1/current.json?" +
+            f"key={local_config.WEATHER_API_KEY}&q={local_config.WEATHER_ZIPCODE}&aqi=no",
+            timeout=local_config.WEATHER_TIMEOUT)
         data_raw = req.content
         req.close()
 
         data = json.loads(data_raw)
 
         temp = data['current']['temp_c']
-        temp_widget.update("%2dC" % int(temp), temp)
+        temp_widget.update(f"{int(temp):2d}C", temp)
 
         icon_url = data['current']['condition']['icon']
-        req = requests.get("http:%s" % icon_url)
+        req = requests.get(f"http:{icon_url}", timeout=local_config.WEATHER_TIMEOUT)
         icon_raw = req.content
         req.close()
 
@@ -218,11 +226,12 @@ def update_weather(temp_widget, weather_icon_widget):
 
 def main():
     sensor = SensorData()
-    mqtt_client = SensorMqttClient(local_config.MQTT_SERVER, local_config.MQTT_USER,
-                                local_config.MQTT_PASS, local_config.MQTT_TOPIC,
-                                sensor)
+    _mqtt_client = SensorMqttClient(local_config.MQTT_SERVER, local_config.MQTT_USER,
+                                    local_config.MQTT_PASS, local_config.MQTT_TOPIC,
+                                    sensor)
 
-    requests.get("http://%s/clear" % local_config.LOCAL_IP)
+    requests.get(f"{local_config.DISPLAY_URL}/clear",
+                 timeout=local_config.DISPLAY_TIMEOUT)
     background = ImageWidget(0, 0)
     background.update(Image.open(sys.argv[1]))
 
