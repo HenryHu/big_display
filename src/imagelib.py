@@ -23,12 +23,8 @@ def img_to_565(img, outw, outh):
         for x in range(outw):
             point = data[y * canvas.width + x]
 
-            if type(point) == int:
-                buf[pos] = point * 255
-                buf[pos + 1] = point * 255
-            else:
-                buf[pos] = point[0] & 0xf8 | ((point[1] & 0xe0) >> 5)
-                buf[pos + 1] = ((point[1] & 0x1c) << 3) | ((point[2] & 0xf8) >> 3)
+            buf[pos] = point[0] & 0xf8 | ((point[1] & 0xe0) >> 5)
+            buf[pos + 1] = ((point[1] & 0x1c) << 3) | ((point[2] & 0xf8) >> 3)
             pos += 2
 
     return buf
