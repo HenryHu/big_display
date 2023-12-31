@@ -1,7 +1,7 @@
 #include "headers.h"
 
 #include "display.h"
-#include "main.h"
+#include "constants.h"
 #include "util.h"
 
 void HandleClear(AsyncWebServerRequest *request) {

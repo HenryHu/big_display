@@ -1,9 +1,11 @@
+#include "util.h"
+
 #include "headers.h"
 
-#include "main.h"
+#include "constants.h"
 #include "display.h"
 
-void TextOut(const int x, const int y, const std::string& text, const uint64_t color = WHITE) {
+void TextOut(const int x, const int y, const std::string& text, const uint16_t color) {
     display->fillRect(x, y, 6 * text.length(), 8, BLACK);
     display->setCursor(x, y);
     display->setTextColor(color);
