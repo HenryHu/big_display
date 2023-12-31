@@ -41,8 +41,8 @@ class DotWidget:
                 f"{local_config.DISPLAY_URL}/dot?x={self.x}&y={self.y}&r={r}&g={g}&b={b}",
                 timeout=local_config.DISPLAY_TIMEOUT)
             r.close()
-        except Exception as e:
-            logging.error(e)
+        except Exception:
+            logging.exception("error drawing dot")
 
 class ImageWidget:
     x = 0
@@ -65,8 +65,8 @@ class ImageWidget:
             if r.content != b'ok':
                 logging.error("fail to set image: %r", r.content)
             r.close()
-        except Exception as e:
-            logging.error(e)
+        except Exception:
+            logging.exception("error drawing image")
 
     def update(self, img):
         data = imagelib.img_to_565(img, self.w, self.h)
@@ -84,11 +84,11 @@ class TextWidget:
     def text_out(self, x, y, text, r=255, g=255, b=255):
         try:
             r = requests.get(
-                f"local_config.DISPLAY_URL/text?x={x}&y={y}&text={text}&r={r}&g={g}&b={b}",
+                f"{local_config.DISPLAY_URL}/text?x={x}&y={y}&text={text}&r={r}&g={g}&b={b}",
                 timeout=1)
             r.close()
-        except Exception as e:
-            logging.error(e)
+        except Exception:
+            logging.exception("error drawing text")
 
     def update(self, text, r=255, g=255, b=255):
         if text != self.text:
@@ -221,8 +221,8 @@ def update_weather(temp_widget, weather_icon_widget):
 
         weather_icon_widget.update(icon_img)
 
-    except Exception as e:
-        logging.error(e)
+    except Exception:
+        logging.exception("error updating weather")
 
 def main():
     sensor = SensorData()
