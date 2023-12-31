@@ -3,11 +3,14 @@
 import sys
 import time
 import json
+import io
 import datetime
 import requests
 import local_config
 import logging
+import imagelib
 import paho.mqtt.client as mqtt
+from PIL import Image
 
 WHITE_COLOR = (255, 255, 255)
 
@@ -50,18 +53,19 @@ class ImageWidget(object):
         self.w = w
         self.h = h
 
-    def image(self, filename):
+    def image(self, data):
         try:
-            data = open(filename, 'rb').read()
-            w = local_config.WIDTH
-            h = local_config.HEIGHT
             r = requests.post("http://%s/bitmap?x=%d&y=%d&w=%d&h=%d" % (
-                local_config.LOCAL_IP, self.x, self.y, w, h), data=data)
+                local_config.LOCAL_IP, self.x, self.y, self.w, self.h), data=data)
+            if r.content != b'ok':
+                print(r.content)
+            r.close()
         except Exception as e:
             logging.error(e)
 
-    def update(self, filename):
-        self.image(filename)
+    def update(self, img):
+        data = imagelib.img_to_565(img, self.w, self.h)
+        self.image(data)
 
 class TextWidget(object):
     x = 0
@@ -189,7 +193,7 @@ class SensorMqttClient(object):
             if key == 'HUM':
                 self.sensor_data.humid = float(value)
 
-def update_weather(temp_widget):
+def update_weather(temp_widget, weather_icon_widget):
     try:
         req = requests.get("http://api.weatherapi.com/v1/current.json?key=%s&q=%s&aqi=no" % (local_config.WEATHER_API_KEY, local_config.WEATHER_ZIPCODE))
         data_raw = req.content
@@ -198,7 +202,16 @@ def update_weather(temp_widget):
         data = json.loads(data_raw)
 
         temp = data['current']['temp_c']
-        temp_widget.update("%dC" % int(temp), temp)
+        temp_widget.update("%2dC" % int(temp), temp)
+
+        icon_url = data['current']['condition']['icon']
+        req = requests.get("http:%s" % icon_url)
+        icon_raw = req.content
+        req.close()
+
+        icon_img = Image.open(io.BytesIO(icon_raw))
+
+        weather_icon_widget.update(icon_img)
 
     except Exception as e:
         logging.error(e)
@@ -211,7 +224,7 @@ def main():
 
     requests.get("http://%s/clear" % local_config.LOCAL_IP)
     background = ImageWidget(0, 0)
-    background.update("out.bmp")
+    background.update(Image.open(sys.argv[1]))
 
     date_widget = TextWithDotWidget(1, 0, ColorPicker())
     wday_widget = TextWidget(0, 56)
@@ -257,8 +270,9 @@ def main():
         35: (252, 123, 3),
         40: (252, 44, 3),
     })
-    ext_temp_widget = ColoredTextWidget(1, 16, ext_temp_color_picker)
+    ext_temp_widget = ColoredTextWidget(46, 48, ext_temp_color_picker)
     last_weather_update = None
+    weather_icon_widget = ImageWidget(48, 32, 16, 16)
 
     while True:
         now = datetime.datetime.now()
@@ -279,8 +293,9 @@ def main():
         if sensor.humid is not None:
             humid_widget.update(sensor.humid_str(), sensor.humid)
 
-        if last_weather_update is None or now - last_weather_update > datetime.timedelta(minutes=1):
-            update_weather(ext_temp_widget)
+        if (last_weather_update is None or
+            now - last_weather_update > datetime.timedelta(minutes=5)):
+            update_weather(ext_temp_widget, weather_icon_widget)
             last_weather_update = now
 
         time.sleep(0.1)
