@@ -3,7 +3,6 @@
 #include "headers.h"
 
 #include "config.h"
-#include "main.h"
 #include "util.h"
 #include "cmds.h"
 #include "display.h"
