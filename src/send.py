@@ -5,6 +5,11 @@ import sys
 
 import local_config
 
-subprocess.check_call(["curl", "http://%s/bitmap/0/0/%d/%d" % (
+if len(sys.argv) < 2:
+    filename = 'out.bmp'
+else:
+    filename = sys.argv[1]
+
+subprocess.check_call(["curl", "http://%s/bitmap?w=%d&h=%d" % (
     local_config.LOCAL_IP, local_config.WIDTH, local_config.HEIGHT), "--data-binary",
-    "@%s" % sys.argv[1]])
+    "@%s" % filename, "-H", "Content-Type: application/binary"])
