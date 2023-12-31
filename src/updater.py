@@ -2,21 +2,40 @@
 
 import sys
 import time
+import json
 import datetime
 import requests
 import local_config
 import logging
 import paho.mqtt.client as mqtt
 
+WHITE_COLOR = (255, 255, 255)
+
 class SensorData(object):
     temp = None
     humid = None
 
     def temp_str(self):
-        return "%rC" % self.temp
+        return "%.1fC" % self.temp
 
     def humid_str(self):
-        return "%r%%" % self.humid
+        return "%.1f%%" % self.humid
+
+class DotWidget(object):
+    x = 0
+    y = 0
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def update(self, r=255, g=255, b=255):
+        try:
+            r = requests.post("http://%s/dot?x=%d&y=%d&r=%d&g=%d&b=%d" % (
+                local_config.LOCAL_IP, self.x, self.y, r,g, b))
+            r.close()
+        except Exception as we:
+            logging.error(e)
 
 class ImageWidget(object):
     x = 0
@@ -68,18 +87,73 @@ class TextWidget(object):
             self.text_out(self.x, self.y, text, r, g, b)
             self.text = text
 
-class RangedTextWidget(TextWidget):
-    color_map = None
-    def __init__(self, x, y, color_map={}):
-        TextWidget.__init__(self, x, y)
-        self.color_map = color_map
+class ColorPicker(object):
+    def pick(self, value):
+        return WHITE_COLOR
 
-    def update(self, text, value):
+    def current_color(self):
+        return WHITE_COLOR
+
+class RangedColorPicker(ColorPicker):
+    color_map = None
+    current_color = None
+    def __init__(self, color_map={}):
+        self.color_map = color_map
+        self.current_color = (255, 255, 255)
+
+    def pick(self, value):
         for entry in sorted(self.color_map):
             if value < entry:
-                TextWidget.update(self, text, *self.color_map[entry])
-                return
-        TextWidget.update(self, text)
+                color = self.color_map[entry]
+                self.current_color = color
+                return color
+        return None
+
+    def current_color(self):
+        return self.current_color
+
+class ColoredTextWidget(TextWidget):
+    picker = None
+    def __init__(self, x, y, picker):
+        TextWidget.__init__(self, x, y)
+        self.picker = picker
+
+    def update(self, text, value):
+        color = self.picker.pick(value)
+        if color is not None:
+            TextWidget.update(self, text, *color)
+        else:
+            TextWidget.update(self, text)
+
+class TextWithDotWidget(object):
+    first_part = None
+    second_part = None
+    dot_widget = None
+    picker = None
+    x = 0
+    y = 0
+    def __init__(self, x, y, picker):
+        self.picker = picker
+        self.x = x
+        self.y = y
+
+        self.first_part = TextWidget(x, y)
+        self.dot_widget = DotWidget(x + 12, y + 6)
+        self.second_part = TextWidget(x + 14, y)
+
+    def update(self, text, value):
+        color = self.picker.pick(value)
+        if color is None:
+            color = WHITE_COLOR
+
+        if '.' in text:
+            (first, second) = text.split('.', 1)
+            self.first_part.update(first, *color)
+            self.dot_widget.update(*color)
+            self.second_part.update(second, *color)
+        else:
+            self.second_part.update('')
+            self.first_part.update(text, *color)
 
 class SensorMqttClient(object):
     client = None
@@ -115,6 +189,20 @@ class SensorMqttClient(object):
             if key == 'HUM':
                 self.sensor_data.humid = float(value)
 
+def update_weather(temp_widget):
+    try:
+        req = requests.get("http://api.weatherapi.com/v1/current.json?key=%s&q=%s&aqi=no" % (local_config.WEATHER_API_KEY, local_config.WEATHER_ZIPCODE))
+        data_raw = req.content
+        req.close()
+
+        data = json.loads(data_raw)
+
+        temp = data['current']['temp_c']
+        temp_widget.update("%dC" % int(temp), temp)
+
+    except Exception as e:
+        logging.error(e)
+
 def main():
     sensor = SensorData()
     mqtt_client = SensorMqttClient(local_config.MQTT_SERVER, local_config.MQTT_USER,
@@ -125,34 +213,75 @@ def main():
     background = ImageWidget(0, 0)
     background.update("out.bmp")
 
-    date_widget = TextWidget(3, 0)
-    time_widget = TextWidget(5, 8)
+    date_widget = TextWithDotWidget(1, 0, ColorPicker())
+    wday_widget = TextWidget(0, 56)
 
-    temp_widget = RangedTextWidget(0, 16, {
-        15: (0, 0, 255),
-        20: (0, 255, 0),
-        27: (0, 255, 255),
-        30: (255, 255, 0),
-        40: (255, 0, 0)
+    hour_widget = TextWidget(38, 0)
+    time_dot1_widget = DotWidget(50, 3)
+    time_dot2_widget = DotWidget(50, 5)
+    min_widget = TextWidget(52, 0)
+
+    tic_widget = TextWidget(48, 56)
+    sec_widget = TextWidget(52, 56)
+
+    temp_color_picker = RangedColorPicker({
+        15: (3, 86, 252),
+        18: (3, 194, 252),
+        20: (3, 252, 232),
+        23: (3, 252, 148),
+        25: (3, 252, 57),
+        27: (123, 252, 3),
+        29: (248, 252, 3),
+        31: (252, 182, 3),
+        35: (252, 82, 3),
+        40: (252, 15, 3),
     })
-    humid_widget = RangedTextWidget(35, 16, {
+    temp_widget = TextWithDotWidget(1, 8, temp_color_picker)
+    humid_widget = TextWithDotWidget(38, 8, RangedColorPicker({
         10: (255, 0, 0),
         20: (0, 255, 255),
         70: (0, 255, 0),
         90: (255, 255, 0),
         100: (0, 0, 255),
+    }))
+
+    ext_temp_color_picker = RangedColorPicker({
+        0: (3, 152, 252),
+        5: (3, 194, 252),
+        10: (3, 252, 227),
+        15: (3, 252, 169),
+        20: (3, 252, 82),
+        25: (123, 252, 3),
+        27: (211, 252, 3),
+        30: (252, 215, 3),
+        35: (252, 123, 3),
+        40: (252, 44, 3),
     })
+    ext_temp_widget = ColoredTextWidget(1, 16, ext_temp_color_picker)
+    last_weather_update = None
 
     while True:
         now = datetime.datetime.now()
 
-        date_widget.update(now.strftime("%Y.%m.%d"))
-        time_widget.update(now.strftime("%H:%M:%S"))
+        date_widget.update(now.strftime("%m.%d"), 0)
+        wday_widget.update(now.strftime("%a"))
+
+        hour_widget.update(now.strftime("%H"))
+        time_dot1_widget.update()
+        time_dot2_widget.update()
+        min_widget.update(now.strftime("%M"))
+
+        tic_widget.update(":")
+        sec_widget.update(now.strftime("%S"))
 
         if sensor.temp is not None:
             temp_widget.update(sensor.temp_str(), sensor.temp)
         if sensor.humid is not None:
             humid_widget.update(sensor.humid_str(), sensor.humid)
+
+        if last_weather_update is None or now - last_weather_update > datetime.timedelta(minutes=1):
+            update_weather(ext_temp_widget)
+            last_weather_update = now
 
         time.sleep(0.1)
 
