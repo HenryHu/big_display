@@ -4,7 +4,7 @@ mkdir -p /tmp/out
 
 FILE=main.ino
 
-ARGS="-prefs build.partitions=huge_app -prefs upload.maximum_size=3145728 -verbose -libraries $HOME/proj/arduino/libraries -hardware $HOME/proj/arduino/hardware -tools /usr/local/arduino/tools -tools /usr/bin -fqbn esp32:esp32:esp32 -build-path /tmp/out -build-cache $HOME/proj/arduino/cache $FILE"
+ARGS="-prefs compiler.cpp.extra_flags=-DARDUINO_HTTP_SERVER_NO_BASIC_AUTH -prefs build.partitions=huge_app -prefs upload.maximum_size=3145728 -verbose -libraries $HOME/proj/arduino/libraries -hardware $HOME/proj/arduino/hardware -tools /usr/local/arduino/tools -tools /usr/bin -fqbn esp32:esp32:esp32 -build-path /tmp/out -build-cache $HOME/proj/arduino/cache $FILE"
 
 arduino-builder -dump-prefs $ARGS
 arduino-builder $ARGS
