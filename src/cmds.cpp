@@ -138,11 +138,11 @@ void HandleBitmap(AsyncWebServerRequest *request, uint8_t *data, size_t len,
     }
 
     if (len + index == total) {
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                const int offset = (y * w + x) * 2;
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                const int offset = (dy * w + dx) * 2;
                 const uint16_t pixel = buf[offset] << 8 | buf[offset + 1];
-                display->drawPixel(x, y, pixel);
+                display->drawPixel(x + dx, y + dy, pixel);
             }
         }
 
