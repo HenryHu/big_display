@@ -3,7 +3,7 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-constants.h
+config.h
 local_config.py
 compile_commands.json
 __pycache__
