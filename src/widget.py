@@ -83,22 +83,15 @@ class ColorPicker:
     def pick(self, _value):
         return WHITE_COLOR
 
-    def current_color(self):
-        return WHITE_COLOR
-
 class RangedColorPicker(ColorPicker):
     color_map = None
-    current_color = None
     def __init__(self, color_map):
         self.color_map = color_map
-        self.current_color = (255, 255, 255)
 
     def pick(self, value):
         for entry in sorted(self.color_map):
             if value < entry:
-                color = self.color_map[entry]
-                self.current_color = color
-                return color
+                return self.color_map[entry]
         return None
 
 class ColoredTextWidget:
