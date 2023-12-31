@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+"""Convert an image to RGB565 binary data"""
+
+import sys
 
 from PIL import Image
-import subprocess
-import sys
 
 import imagelib
 import local_config
@@ -16,11 +17,7 @@ img = img.crop(img.getbbox())
 
 buf = imagelib.img_to_565(img, TARGET_WIDTH, TARGET_HEIGHT)
 
-if len(sys.argv) < 3:
-    filename = 'out.bmp'
-else:
-    filename = sys.argv[2]
+filename = 'out.bmp' if len(sys.argv) < 3 else sys.argv[2]
 
-outf = open(filename, 'wb')
-outf.write(buf)
-outf.close()
+with open(filename, 'wb') as outf:
+    outf.write(buf)

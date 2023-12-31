@@ -1,12 +1,11 @@
+"""Image processing utilities"""
+
 from PIL import Image
 
 def scale_size(w, h, tw, th):
     wr = w / tw
     hr = h / th
-    if wr > hr:
-        return (tw, int(h / wr))
-    else:
-        return (int(w / hr), th)
+    return (tw, int(h / wr)) if wr > hr else (int(w / hr), th)
 
 def img_to_565(img, outw, outh):
     data = img
