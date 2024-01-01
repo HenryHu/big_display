@@ -31,7 +31,6 @@ class ImageWidget:
     y = 0
     w = 0
     h = 0
-    filename = None
 
     def __init__(self, x, y, w=local_config.WIDTH, h=local_config.HEIGHT):
         self.x = x
@@ -62,6 +61,7 @@ class TextWidget:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.text = ''
 
     def text_out(self, x, y, text, r=255, g=255, b=255):
         try:
@@ -72,8 +72,8 @@ class TextWidget:
         except Exception:
             logging.exception("error drawing text")
 
-    def update(self, text, r=255, g=255, b=255):
-        if text != self.text:
+    def update(self, text, r=255, g=255, b=255, force=False):
+        if text != self.text or force:
             if self.text and len(text) != len(self.text):
                 self.text_out(self.x, self.y, ' ' * len(self.text))
             self.text_out(self.x, self.y, text, r, g, b)
@@ -101,12 +101,12 @@ class ColoredTextWidget:
         self.text_widget = TextWidget(x, y)
         self.picker = picker
 
-    def update(self, text, value):
+    def update(self, text, value, force=False):
         color = self.picker.pick(value)
         if color is not None:
-            self.text_widget.update(text, *color)
+            self.text_widget.update(text, *color, force=force)
         else:
-            self.text_widget.update(text)
+            self.text_widget.update(text, force=force)
 
 class TextWithDotWidget:
     first_part = None

@@ -71,7 +71,7 @@ def main():
     })
     ext_temp_widget = widget.ColoredTextWidget(46, 48, ext_temp_color_picker)
     last_weather_update = None
-    weather_icon_widget = widget.ImageWidget(48, 32, 16, 16)
+    weather_icon_widget = widget.ImageWidget(44, 32, 20, 20)
 
     while True:
         now = datetime.datetime.now()

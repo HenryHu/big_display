@@ -21,17 +21,16 @@ def update_weather(temp_widget, weather_icon_widget):
 
         data = json.loads(data_raw)
 
-        temp = data['current']['temp_c']
-        temp_widget.update(f"{int(temp):2d}C", temp)
-
         icon_url = data['current']['condition']['icon']
         req = requests.get(f"http:{icon_url}", timeout=local_config.WEATHER_TIMEOUT)
         icon_raw = req.content
         req.close()
 
         icon_img = Image.open(io.BytesIO(icon_raw))
-
         weather_icon_widget.update(icon_img)
+
+        temp = data['current']['temp_c']
+        temp_widget.update(f"{int(temp):2d}C", temp, force=True)
 
     except Exception:
         logging.exception("error updating weather")
