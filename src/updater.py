@@ -16,6 +16,7 @@ import weather
 
 def main():
     sensor_data = sensor.SensorData()
+    sensor_data.restore()
     _mqtt_client = sensor.SensorMqttClient(local_config.MQTT_SERVER, local_config.MQTT_USER,
                                            local_config.MQTT_PASS, local_config.MQTT_TOPIC,
                                            sensor_data)

@@ -1,7 +1,8 @@
 """Gets sensor data"""
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,broad-except
 
 import logging
+import json
 
 import paho.mqtt.client as mqtt
 
@@ -16,6 +17,20 @@ class SensorData:
 
     def humid_str(self):
         return f"{self.humid:.1f}%"
+
+    def persist(self):
+        with open(local_config.SENSOR_PERSIST_PATH, 'w', encoding='utf-8') as outf:
+            outf.write(json.dumps({"temp": self.temp, "humid": self.humid}))
+
+    def restore(self):
+        try:
+            with open(local_config.SENSOR_PERSIST_PATH, encoding='utf-8') as inf:
+                saved_state = json.loads(inf.read())
+                self.temp = saved_state["temp"]
+                self.humid = saved_state["humid"]
+        except Exception:
+            logging.exception("fail to load saved sensor state")
+
 
 class SensorMqttClient:
     client = None
@@ -51,3 +66,4 @@ class SensorMqttClient:
                 self.sensor_data.temp = float(value)
             if key == 'HUM':
                 self.sensor_data.humid = float(value)
+        self.sensor_data.persist()
