@@ -8,6 +8,7 @@ local_config.py
 compile_commands.json
 __pycache__
 sensors.json
+weather.json
 .ccls
 .ccls-cache
-.pil
+*.pil
