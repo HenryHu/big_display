@@ -2,7 +2,10 @@
 # pylint: disable=too-few-public-methods,broad-except,too-many-arguments
 
 import time
+import logging
+
 from PIL import Image, ImageDraw, ImageFont
+
 import align
 import local_config
 import imagelib
@@ -70,7 +73,8 @@ class ImageWidget(Widget):
 
         if self.parent is None:
             while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled)):
-                time.sleep(1)
+                logging.warning("retrying bitmap draw")
+                time.sleep(0.1)
 
     def repaint(self):
         if self.state is None:
