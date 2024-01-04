@@ -1,13 +1,11 @@
 """Widgets to be used with the display"""
 # pylint: disable=too-few-public-methods,broad-except,too-many-arguments
 
-import logging
-
 from PIL import Image, ImageDraw, ImageFont
-import requests
 import align
 import local_config
 import imagelib
+import display
 
 WHITE_COLOR = (255, 255, 255)
 
@@ -35,15 +33,7 @@ class DotWidget(Widget):
         self.y = y
 
     def update(self, r=255, g=255, b=255):
-        try:
-            r = requests.post(
-                f"{local_config.DISPLAY_URL}/dot?x={self.x}&y={self.y}&r={r}&g={g}&b={b}",
-                timeout=local_config.DISPLAY_TIMEOUT)
-            r.close()
-            return True
-        except Exception:
-            logging.exception("error drawing dot")
-            return False
+        display.dot(self.x, self.y, r, g, b)
 
 class ImageWidget(Widget):
     x = 0
@@ -63,26 +53,13 @@ class ImageWidget(Widget):
         self.halign = halign
         self.valign = valign
 
-    def image(self, data: bytes):
-        try:
-            r = requests.post(
-                f"{local_config.DISPLAY_URL}/bitmap?x={self.x}&y={self.y}&w={self.w}&h={self.h}",
-                data=data, timeout=local_config.DISPLAY_TIMEOUT)
-            if r.content != b'ok':
-                logging.error("fail to set image: %r", r.content)
-            r.close()
-            return True
-        except Exception:
-            logging.exception("error drawing image")
-            return False
-
     def update(self, img: Image):
         scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
         for child in self.children:
             child.render(scaled)
 
         if self.parent is None:
-            self.image(imagelib.to_565(scaled))
+            display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled))
         else:
             self.state = scaled
 
@@ -98,24 +75,13 @@ class TextWidget(Widget):
         self.text = ''
         self.font = ImageFont.load(local_config.FONT_PATH)
 
-    def text_out(self, x: int, y: int, text: str, r: int=255, g: int=255, b: int=255):
-        try:
-            r = requests.get(
-                f"{local_config.DISPLAY_URL}/text?x={x}&y={y}&text={text}&r={r}&g={g}&b={b}",
-                timeout=1)
-            r.close()
-            return True
-        except Exception:
-            logging.exception("error drawing text")
-            return False
-
     def update(self, text: str, r: int=255, g: int=255, b: int=255, force: bool=False):
         if text != self.text or force:
             if self.text and len(text) != len(self.text):
-                self.text_out(self.x, self.y, ' ' * len(self.text))
+                display.text(self.x, self.y, ' ' * len(self.text), 0, 0, 0)
 
             if self.parent is None:
-                if self.text_out(self.x, self.y, text, r, g, b):
+                if display.text(self.x, self.y, text, r, g, b):
                     self.text = text
             else:
                 self.state = (text, r, g, b)
