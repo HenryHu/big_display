@@ -22,7 +22,7 @@ def text(x, y, t, r, g, b):
     try:
         r = requests.get(
             f"{local_config.DISPLAY_URL}/text?x={x}&y={y}&text={t}&r={r}&g={g}&b={b}",
-            timeout=1)
+            timeout=local_config.DISPLAY_TIMEOUT_LONG)
         r.close()
         return True
     except Exception:
@@ -33,7 +33,7 @@ def bitmap(x, y, w, h, data):
     try:
         r = requests.post(
             f"{local_config.DISPLAY_URL}/bitmap?x={x}&y={y}&w={w}&h={h}",
-            data=data, timeout=local_config.DISPLAY_TIMEOUT)
+            data=data, timeout=local_config.DISPLAY_TIMEOUT_LONG)
         if r.content != b'ok':
             logging.error("fail to set image: %r", r.content)
         r.close()
@@ -41,3 +41,7 @@ def bitmap(x, y, w, h, data):
     except Exception:
         logging.exception("error drawing image")
         return False
+
+def clear():
+    requests.get(f"{local_config.DISPLAY_URL}/clear",
+                 timeout=local_config.DISPLAY_TIMEOUT)

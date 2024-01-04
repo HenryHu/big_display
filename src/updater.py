@@ -6,7 +6,6 @@ import sys
 import time
 import datetime
 
-import requests
 import local_config
 from PIL import Image
 
@@ -14,7 +13,7 @@ import align
 import sensor
 import widget
 import weather
-
+import display
 
 class Gui:
     def __init__(self):
@@ -75,9 +74,7 @@ def main():
                                            local_config.MQTT_PASS, local_config.MQTT_TOPIC,
                                            sensor_data)
 
-    requests.get(f"{local_config.DISPLAY_URL}/clear",
-                 timeout=local_config.DISPLAY_TIMEOUT)
-
+    display.clear()
     gui = Gui()
     gui.background.update(Image.open(sys.argv[1]))
 
