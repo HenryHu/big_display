@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Updater to keep updating the big display."""
-# pylint: disable=broad-except,too-many-locals
+# pylint: disable=too-many-instance-attributes,too-few-public-methods
 
 import sys
 import time
@@ -16,6 +16,58 @@ import widget
 import weather
 
 
+class Gui:
+    def __init__(self):
+        self.background = widget.ImageWidget(0, 0)
+
+        self.date_widget = widget.TextWithDotWidget(1, 0, widget.ColorPicker())
+        self.wday_widget = widget.TextWidget(0, 56)
+
+        self.hour_widget = widget.TextWidget(38, 0)
+        self.time_dot1_widget = widget.DotWidget(50, 3)
+        self.time_dot2_widget = widget.DotWidget(50, 5)
+        self.min_widget = widget.TextWidget(52, 0)
+
+        self.tic_widget = widget.TextWidget(48, 56)
+        self.sec_widget = widget.TextWidget(52, 56)
+
+        temp_color_picker = widget.RangedColorPicker({
+            15: (3, 86, 252),
+            18: (3, 194, 252),
+            20: (3, 252, 232),
+            23: (3, 252, 148),
+            25: (3, 252, 57),
+            27: (123, 252, 3),
+            29: (248, 252, 3),
+            31: (252, 182, 3),
+            35: (252, 82, 3),
+            40: (252, 15, 3),
+        })
+        self.temp_widget = widget.TextWithDotWidget(1, 8, temp_color_picker)
+        self.humid_widget = widget.TextWithDotWidget(38, 8, widget.RangedColorPicker({
+            10: (255, 0, 0),
+            20: (0, 255, 255),
+            70: (0, 255, 0),
+            90: (255, 255, 0),
+            100: (0, 0, 255),
+        }))
+
+        ext_temp_color_picker = widget.RangedColorPicker({
+            0: (3, 152, 252),
+            5: (3, 194, 252),
+            10: (3, 252, 227),
+            15: (3, 252, 169),
+            20: (3, 252, 82),
+            25: (123, 252, 3),
+            27: (211, 252, 3),
+            30: (252, 215, 3),
+            35: (252, 123, 3),
+            40: (252, 44, 3),
+        })
+        self.weather_icon_widget = widget.ImageWidget(46, 32, 18, 24, align.HAlign.TOP)
+        self.ext_temp_widget = widget.ColoredTextWidget(0, 12, ext_temp_color_picker)
+        self.weather_icon_widget.add_child(self.ext_temp_widget)
+
 def main():
     sensor_data = sensor.SensorData()
     sensor_data.restore()
@@ -25,81 +77,32 @@ def main():
 
     requests.get(f"{local_config.DISPLAY_URL}/clear",
                  timeout=local_config.DISPLAY_TIMEOUT)
-    background = widget.ImageWidget(0, 0)
-    background.update(Image.open(sys.argv[1]))
 
-    date_widget = widget.TextWithDotWidget(1, 0, widget.ColorPicker())
-    wday_widget = widget.TextWidget(0, 56)
+    gui = Gui()
+    gui.background.update(Image.open(sys.argv[1]))
 
-    hour_widget = widget.TextWidget(38, 0)
-    time_dot1_widget = widget.DotWidget(50, 3)
-    time_dot2_widget = widget.DotWidget(50, 5)
-    min_widget = widget.TextWidget(52, 0)
-
-    tic_widget = widget.TextWidget(48, 56)
-    sec_widget = widget.TextWidget(52, 56)
-
-    temp_color_picker = widget.RangedColorPicker({
-        15: (3, 86, 252),
-        18: (3, 194, 252),
-        20: (3, 252, 232),
-        23: (3, 252, 148),
-        25: (3, 252, 57),
-        27: (123, 252, 3),
-        29: (248, 252, 3),
-        31: (252, 182, 3),
-        35: (252, 82, 3),
-        40: (252, 15, 3),
-    })
-    temp_widget = widget.TextWithDotWidget(1, 8, temp_color_picker)
-    humid_widget = widget.TextWithDotWidget(38, 8, widget.RangedColorPicker({
-        10: (255, 0, 0),
-        20: (0, 255, 255),
-        70: (0, 255, 0),
-        90: (255, 255, 0),
-        100: (0, 0, 255),
-    }))
-
-    ext_temp_color_picker = widget.RangedColorPicker({
-        0: (3, 152, 252),
-        5: (3, 194, 252),
-        10: (3, 252, 227),
-        15: (3, 252, 169),
-        20: (3, 252, 82),
-        25: (123, 252, 3),
-        27: (211, 252, 3),
-        30: (252, 215, 3),
-        35: (252, 123, 3),
-        40: (252, 44, 3),
-    })
-    last_weather_update = None
-    weather_icon_widget = widget.ImageWidget(46, 32, 18, 24, align.HAlign.TOP)
-    ext_temp_widget = widget.ColoredTextWidget(0, 12, ext_temp_color_picker)
-    weather_icon_widget.add_child(ext_temp_widget)
+    weather_tracker = weather.WeatherTracker()
 
     while True:
         now = datetime.datetime.now()
 
-        date_widget.update(now.strftime("%m.%d"), 0)
-        wday_widget.update(now.strftime("%a"))
+        gui.date_widget.update(now.strftime("%m.%d"), 0)
+        gui.wday_widget.update(now.strftime("%a"))
 
-        hour_widget.update(now.strftime("%H"))
-        time_dot1_widget.update()
-        time_dot2_widget.update()
-        min_widget.update(now.strftime("%M"))
+        gui.hour_widget.update(now.strftime("%H"))
+        gui.time_dot1_widget.update()
+        gui.time_dot2_widget.update()
+        gui.min_widget.update(now.strftime("%M"))
 
-        tic_widget.update(":")
-        sec_widget.update(now.strftime("%S"))
+        gui.tic_widget.update(":")
+        gui.sec_widget.update(now.strftime("%S"))
 
         if sensor_data.temp is not None:
-            temp_widget.update(sensor_data.temp_str(), sensor_data.temp)
+            gui.temp_widget.update(sensor_data.temp_str(), sensor_data.temp)
         if sensor_data.humid is not None:
-            humid_widget.update(sensor_data.humid_str(), sensor_data.humid)
+            gui.humid_widget.update(sensor_data.humid_str(), sensor_data.humid)
 
-        if (last_weather_update is None or
-            now - last_weather_update > datetime.timedelta(minutes=5)):
-            weather.update_weather(ext_temp_widget, weather_icon_widget)
-            last_weather_update = now
+        weather_tracker.update_weather(gui.ext_temp_widget, gui.weather_icon_widget)
 
         time.sleep(0.1)
 
