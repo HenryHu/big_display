@@ -125,9 +125,10 @@ class TextWidget(Widget):
             return
 
         draw = ImageDraw.Draw(canvas)
-        draw.text((self.x, self.y), self.text,
+        draw.text((self.x, self.y), self.state[0],
                   fill=(self.state[1], self.state[2], self.state[3]),
                   font=self.font, align='left')
+        self.text = self.state[0]
 
 class ColorPicker:
     def pick(self, _value):
