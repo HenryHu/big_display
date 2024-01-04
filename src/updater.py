@@ -9,6 +9,8 @@ import datetime
 import requests
 import local_config
 from PIL import Image
+
+import align
 import sensor
 import widget
 import weather
@@ -70,9 +72,10 @@ def main():
         35: (252, 123, 3),
         40: (252, 44, 3),
     })
-    ext_temp_widget = widget.ColoredTextWidget(46, 48, ext_temp_color_picker)
     last_weather_update = None
-    weather_icon_widget = widget.ImageWidget(44, 32, 20, 20)
+    weather_icon_widget = widget.ImageWidget(46, 36, 18, 24, align.HAlign.TOP)
+    ext_temp_widget = widget.ColoredTextWidget(0, 9, ext_temp_color_picker)
+    weather_icon_widget.add_child(ext_temp_widget)
 
     while True:
         now = datetime.datetime.now()

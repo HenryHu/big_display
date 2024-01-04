@@ -3,13 +3,30 @@
 
 import logging
 
+from PIL import Image, ImageDraw, ImageFont
 import requests
+import align
 import local_config
 import imagelib
 
 WHITE_COLOR = (255, 255, 255)
 
-class DotWidget:
+class Widget:
+    parent = None
+    children = []
+    state = None
+
+    def add_child(self, child):
+        self.children.append(child)
+        child.set_parent(self)
+
+    def set_parent(self, parent):
+        self.parent = parent
+
+    def render(self, canvas):
+        pass
+
+class DotWidget(Widget):
     x = 0
     y = 0
 
@@ -23,22 +40,30 @@ class DotWidget:
                 f"{local_config.DISPLAY_URL}/dot?x={self.x}&y={self.y}&r={r}&g={g}&b={b}",
                 timeout=local_config.DISPLAY_TIMEOUT)
             r.close()
+            return True
         except Exception:
             logging.exception("error drawing dot")
+            return False
 
-class ImageWidget:
+class ImageWidget(Widget):
     x = 0
     y = 0
     w = 0
     h = 0
+    halign = align.HAlign.MIDDLE
+    valign = align.VAlign.MIDDLE
 
-    def __init__(self, x, y, w=local_config.WIDTH, h=local_config.HEIGHT):
+    def __init__(self, x, y, w=local_config.WIDTH, h=local_config.HEIGHT,
+                 halign=align.HAlign.MIDDLE, valign=align.VAlign.MIDDLE
+                 ):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
+        self.halign = halign
+        self.valign = valign
 
-    def image(self, data):
+    def image(self, data: bytes):
         try:
             r = requests.post(
                 f"{local_config.DISPLAY_URL}/bitmap?x={self.x}&y={self.y}&w={self.w}&h={self.h}",
@@ -46,38 +71,63 @@ class ImageWidget:
             if r.content != b'ok':
                 logging.error("fail to set image: %r", r.content)
             r.close()
+            return True
         except Exception:
             logging.exception("error drawing image")
+            return False
 
-    def update(self, img):
-        data = imagelib.img_to_565(img, self.w, self.h)
-        self.image(data)
+    def update(self, img: Image):
+        scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
+        for child in self.children:
+            child.render(scaled)
 
-class TextWidget:
+        if self.parent is None:
+            self.image(imagelib.to_565(scaled))
+        else:
+            self.state = scaled
+
+class TextWidget(Widget):
     x = 0
     y = 0
     text = ''
+    font = None
 
-    def __init__(self, x, y):
+    def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
         self.text = ''
+        self.font = ImageFont.load(local_config.FONT_PATH)
 
-    def text_out(self, x, y, text, r=255, g=255, b=255):
+    def text_out(self, x: int, y: int, text: str, r: int=255, g: int=255, b: int=255):
         try:
             r = requests.get(
                 f"{local_config.DISPLAY_URL}/text?x={x}&y={y}&text={text}&r={r}&g={g}&b={b}",
                 timeout=1)
             r.close()
+            return True
         except Exception:
             logging.exception("error drawing text")
+            return False
 
-    def update(self, text, r=255, g=255, b=255, force=False):
+    def update(self, text: str, r: int=255, g: int=255, b: int=255, force: bool=False):
         if text != self.text or force:
             if self.text and len(text) != len(self.text):
                 self.text_out(self.x, self.y, ' ' * len(self.text))
-            self.text_out(self.x, self.y, text, r, g, b)
-            self.text = text
+
+            if self.parent is None:
+                if self.text_out(self.x, self.y, text, r, g, b):
+                    self.text = text
+            else:
+                self.state = (text, r, g, b)
+
+    def render(self, canvas):
+        if self.state is None:
+            return
+
+        draw = ImageDraw.Draw(canvas)
+        draw.text((self.x, self.y), self.text,
+                  fill=(self.state[1], self.state[2], self.state[3]),
+                  font=self.font, align='left')
 
 class ColorPicker:
     def pick(self, _value):
@@ -94,19 +144,25 @@ class RangedColorPicker(ColorPicker):
                 return self.color_map[entry]
         return None
 
-class ColoredTextWidget:
+class ColoredTextWidget(Widget):
     text_widget = None
     picker = None
-    def __init__(self, x, y, picker):
+    def __init__(self, x: int, y: int, picker: ColorPicker):
         self.text_widget = TextWidget(x, y)
         self.picker = picker
 
-    def update(self, text, value, force=False):
+    def update(self, text: str, value: float, force: bool=False):
         color = self.picker.pick(value)
         if color is not None:
             self.text_widget.update(text, *color, force=force)
         else:
             self.text_widget.update(text, force=force)
+
+    def set_parent(self, parent):
+        self.text_widget.set_parent(parent)
+
+    def render(self, canvas):
+        self.text_widget.render(canvas)
 
 class TextWithDotWidget:
     first_part = None

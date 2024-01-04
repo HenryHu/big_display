@@ -27,10 +27,12 @@ def update_weather(temp_widget, weather_icon_widget):
         req.close()
 
         icon_img = Image.open(io.BytesIO(icon_raw))
-        weather_icon_widget.update(icon_img)
+        icon_img = icon_img.crop(icon_img.getbbox())
 
         temp = data['current']['temp_c']
         temp_widget.update(f"{int(temp):2d}C", temp, force=True)
+
+        weather_icon_widget.update(icon_img)
 
     except Exception:
         logging.exception("error updating weather")
