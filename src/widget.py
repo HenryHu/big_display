@@ -1,6 +1,7 @@
 """Widgets to be used with the display"""
 # pylint: disable=too-few-public-methods,broad-except,too-many-arguments
 
+import time
 from PIL import Image, ImageDraw, ImageFont
 import align
 import local_config
@@ -27,13 +28,21 @@ class Widget:
 class DotWidget(Widget):
     x = 0
     y = 0
+    state = None
 
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.state = None
 
     def update(self, r=255, g=255, b=255):
         display.dot(self.x, self.y, r, g, b)
+        self.state = (r, g, b)
+
+    def repaint(self):
+        if self.state is None:
+            return
+        display.dot(self.x, self.y, self.state[0], self.state[1], self.state[2])
 
 class ImageWidget(Widget):
     x = 0
@@ -55,13 +64,19 @@ class ImageWidget(Widget):
 
     def update(self, img: Image):
         scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
+        self.state = scaled
         for child in self.children:
             child.render(scaled)
 
         if self.parent is None:
-            display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled))
-        else:
-            self.state = scaled
+            while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled)):
+                time.sleep(1)
+
+    def repaint(self):
+        if self.state is None:
+            return
+        if self.parent is None:
+            display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(self.state))
 
 class TextWidget(Widget):
     x = 0
@@ -74,27 +89,33 @@ class TextWidget(Widget):
         self.y = y
         self.text = ''
         self.font = ImageFont.load(local_config.FONT_PATH)
+        self.state = None
 
     def update(self, text: str, r: int=255, g: int=255, b: int=255, force: bool=False):
         if text != self.text or force:
             if self.text and len(text) != len(self.text):
                 display.text(self.x, self.y, ' ' * len(self.text), 0, 0, 0)
 
+            self.state = (text, r, g, b)
             if self.parent is None:
                 if display.text(self.x, self.y, text, r, g, b):
                     self.text = text
-            else:
-                self.state = (text, r, g, b)
 
     def render(self, canvas):
         if self.state is None:
             return
+        (text, r, g, b) = self.state
 
         draw = ImageDraw.Draw(canvas)
-        draw.text((self.x, self.y), self.state[0],
-                  fill=(self.state[1], self.state[2], self.state[3]),
-                  font=self.font, align='left')
+        draw.text((self.x, self.y), text, fill=(r, g, b), font=self.font, align='left')
         self.text = self.state[0]
+
+    def repaint(self):
+        if self.state is None:
+            return
+        if self.parent is None:
+            (text, r, g, b) = self.state
+            display.text(self.x, self.y, text, r, g, b)
 
 class ColorPicker:
     def pick(self, _value):
@@ -131,6 +152,9 @@ class ColoredTextWidget(Widget):
     def render(self, canvas):
         self.text_widget.render(canvas)
 
+    def repaint(self):
+        self.text_widget.repaint()
+
 class TextWithDotWidget:
     first_part = None
     second_part = None
@@ -160,3 +184,8 @@ class TextWithDotWidget:
         else:
             self.second_part.update('')
             self.first_part.update(text, *color)
+
+    def repaint(self):
+        self.first_part.repaint()
+        self.dot_widget.repaint()
+        self.second_part.repaint()

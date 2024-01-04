@@ -2,9 +2,9 @@
 """Updater to keep updating the big display."""
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
 
-import sys
 import time
 import datetime
+import random
 
 import local_config
 from PIL import Image
@@ -67,6 +67,27 @@ class Gui:
         self.ext_temp_widget = widget.ColoredTextWidget(0, 12, ext_temp_color_picker)
         self.weather_icon_widget.add_child(self.ext_temp_widget)
 
+    def repaint(self):
+        self.date_widget.repaint()
+        self.wday_widget.repaint()
+
+        self.hour_widget.repaint()
+        self.time_dot1_widget.repaint()
+        self.time_dot2_widget.repaint()
+        self.min_widget.repaint()
+
+        self.tic_widget.repaint()
+        self.sec_widget.repaint()
+
+        self.temp_widget.repaint()
+        self.humid_widget.repaint()
+
+        self.weather_icon_widget.repaint()
+        self.ext_temp_widget.repaint()
+
+def pick_background():
+    return Image.open(random.choice(local_config.BACKGROUND_IMAGES))
+
 def main():
     sensor_data = sensor.SensorData()
     sensor_data.restore()
@@ -76,12 +97,19 @@ def main():
 
     display.clear()
     gui = Gui()
-    gui.background.update(Image.open(sys.argv[1]))
+
+    background_update_time = None
 
     weather_tracker = weather.WeatherTracker()
 
     while True:
         now = datetime.datetime.now()
+
+        if (background_update_time is None or
+            now - background_update_time > local_config.BACKGROUND_CYCLE_TIME):
+            gui.background.update(pick_background())
+            gui.repaint()
+            background_update_time = now
 
         gui.date_widget.update(now.strftime("%m.%d"), 0)
         gui.wday_widget.update(now.strftime("%a"))

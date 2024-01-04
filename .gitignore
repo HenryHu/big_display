@@ -12,3 +12,4 @@ weather.json
 .ccls
 .ccls-cache
 *.pil
+*.pbm
