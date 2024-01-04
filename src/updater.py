@@ -73,8 +73,8 @@ def main():
         40: (252, 44, 3),
     })
     last_weather_update = None
-    weather_icon_widget = widget.ImageWidget(46, 36, 18, 24, align.HAlign.TOP)
-    ext_temp_widget = widget.ColoredTextWidget(0, 9, ext_temp_color_picker)
+    weather_icon_widget = widget.ImageWidget(46, 32, 18, 24, align.HAlign.TOP)
+    ext_temp_widget = widget.ColoredTextWidget(0, 12, ext_temp_color_picker)
     weather_icon_widget.add_child(ext_temp_widget)
 
     while True:
