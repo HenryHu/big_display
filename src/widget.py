@@ -15,8 +15,11 @@ WHITE_COLOR = (255, 255, 255)
 
 class Widget:
     parent = None
-    children = []
+    children = None
     state = None
+
+    def __init__(self):
+        self.children = []
 
     def add_child(self, child):
         self.children.append(child)
@@ -34,6 +37,7 @@ class DotWidget(Widget):
     state = None
 
     def __init__(self, x, y):
+        Widget.__init__(self)
         self.x = x
         self.y = y
         self.state = None
@@ -45,7 +49,8 @@ class DotWidget(Widget):
     def repaint(self):
         if self.state is None:
             return
-        display.dot(self.x, self.y, self.state[0], self.state[1], self.state[2])
+        if self.parent is None:
+            display.dot(self.x, self.y, self.state[0], self.state[1], self.state[2])
 
 class ImageWidget(Widget):
     x = 0
@@ -58,6 +63,7 @@ class ImageWidget(Widget):
     def __init__(self, x, y, w=local_config.WIDTH, h=local_config.HEIGHT,
                  halign=align.HAlign.MIDDLE, valign=align.VAlign.MIDDLE
                  ):
+        Widget.__init__(self)
         self.x = x
         self.y = y
         self.w = w
@@ -89,6 +95,7 @@ class TextWidget(Widget):
     font = None
 
     def __init__(self, x: int, y: int):
+        Widget.__init__(self)
         self.x = x
         self.y = y
         self.text = ''
@@ -140,6 +147,7 @@ class ColoredTextWidget(Widget):
     text_widget = None
     picker = None
     def __init__(self, x: int, y: int, picker: ColorPicker):
+        Widget.__init__(self)
         self.text_widget = TextWidget(x, y)
         self.picker = picker
 
