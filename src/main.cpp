@@ -34,4 +34,7 @@ void setup() {
     SetupServer(server);
 }
 
-void loop() {}
+void loop() {
+    Serial.printf("Free mem: %d\r\n", esp_get_free_heap_size());
+    delay(5000);
+}
