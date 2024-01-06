@@ -12,6 +12,12 @@ AsyncWebServer server(SERVER_PORT);
 void InitWifi() {
     PrintStatus(WIFI_SSID);
     WiFi.setHostname(HOSTNAME);
+    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info){
+            Serial.printf("WiFi disconnected, reconnect, reason: %d\r\n",
+                          info.wifi_sta_disconnected.reason);
+            WiFi.begin(WIFI_SSID, WIFI_PASS);
+            },
+            WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
