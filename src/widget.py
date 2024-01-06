@@ -82,7 +82,9 @@ class ImageWidget(Widget):
         if self.parent is None:
             while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled)):
                 logging.warning("retrying bitmap draw")
-                time.sleep(0.1)
+                time.sleep(1)
+
+        return True
 
     def repaint(self):
         if self.state is None:
