@@ -20,6 +20,8 @@ class Widget:
 
     def __init__(self):
         self.children = []
+        self.parent = None
+        self.state = None
 
     def add_child(self, child):
         self.children.append(child)
