@@ -18,6 +18,7 @@ class WeatherTracker:
 
     def __init__(self):
         (self.weather_data, self.weather_data_timestamp) = self.load_weather_from_cache()
+        self.need_repaint = True
 
     def load_weather_from_cache(self):
         try:
@@ -50,6 +51,10 @@ class WeatherTracker:
             datetime.datetime.now() - self.weather_data_timestamp >
             local_config.WEATHER_UPDATE_TIME):
             (self.weather_data, self.weather_data_timestamp) = self.fetch_weather()
+            self.need_repaint = True
+
+        if not self.need_repaint:
+            return
 
         try:
             if self.weather_data is None:
@@ -67,7 +72,8 @@ class WeatherTracker:
             temp = self.weather_data['current']['temp_c']
             temp_widget.update(f"{int(temp):2d}C", temp, force=True)
 
-            weather_icon_widget.update(icon_img)
+            if weather_icon_widget.update(icon_img):
+                self.need_repaint = False
 
         except Exception:
             logging.exception("error updating weather")
