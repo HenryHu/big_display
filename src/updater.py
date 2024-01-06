@@ -63,8 +63,8 @@ class Gui:
             35: (252, 123, 3),
             40: (252, 44, 3),
         })
-        self.weather_icon_widget = widget.ImageWidget(46, 32, 18, 24, align.HAlign.TOP)
-        self.ext_temp_widget = widget.ColoredTextWidget(0, 12, ext_temp_color_picker)
+        self.weather_icon_widget = widget.ImageWidget(46, 28, 18, 28, align.HAlign.TOP)
+        self.ext_temp_widget = widget.ColoredTextWidget(0, 16, ext_temp_color_picker)
         self.weather_icon_widget.add_child(self.ext_temp_widget)
 
     def repaint(self):
