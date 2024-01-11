@@ -9,11 +9,14 @@ def scale_size(w, h, tw, th):
     hr = h / th
     return (tw, int(h / wr)) if wr > hr else (int(w / hr), th)
 
+def create(w, h):
+    return Image.new('RGBA', (w, h))
+
 def scale(img, outw, outh, halign=align.HAlign.MIDDLE, valign=align.VAlign.MIDDLE):
     (w, h) = scale_size(img.width, img.height, outw, outh)
     img = img.resize((w, h))
 
-    canvas = Image.new('RGB', (outw, outh))
+    canvas = Image.new('RGBA', (outw, outh))
     if valign == align.VAlign.LEFT:
         x = 0
     elif valign == align.VAlign.MIDDLE:

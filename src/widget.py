@@ -1,5 +1,5 @@
 """Widgets to be used with the display"""
-# pylint: disable=too-few-public-methods,broad-except,too-many-arguments
+# pylint: disable=too-few-public-methods,broad-except,too-many-arguments,too-many-instance-attributes
 
 import time
 import logging
@@ -55,13 +55,6 @@ class DotWidget(Widget):
             display.dot(self.x, self.y, self.state[0], self.state[1], self.state[2])
 
 class ImageWidget(Widget):
-    x = 0
-    y = 0
-    w = 0
-    h = 0
-    halign = align.HAlign.MIDDLE
-    valign = align.VAlign.MIDDLE
-
     def __init__(self, x, y, w=local_config.WIDTH, h=local_config.HEIGHT,
                  halign=align.HAlign.MIDDLE, valign=align.VAlign.MIDDLE
                  ):
@@ -72,15 +65,32 @@ class ImageWidget(Widget):
         self.h = h
         self.halign = halign
         self.valign = valign
+        self.background = None
+
+    def paint(self, x, y, w, h):
+        if self.state is None:
+            return None
+        copy = self.state
+        dx = x - self.x
+        dy = y - self.y
+        return copy.crop((dx, dy, dx + w, dy + h))
 
     def update(self, img: Image):
-        scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
-        self.state = scaled
-        for child in self.children:
-            child.render(scaled)
+        canvas = imagelib.create(self.w, self.h)
 
+        if self.background is not None:
+            background = self.background.paint(self.x, self.y, self.w, self.h)
+            if background is not None:
+                canvas = background
+
+        scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
+        canvas.alpha_composite(scaled)
+        for child in self.children:
+            child.render(canvas)
+
+        self.state = canvas
         if self.parent is None:
-            while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(scaled)):
+            while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(canvas)):
                 logging.warning("retrying bitmap draw")
                 time.sleep(1)
 
@@ -91,6 +101,9 @@ class ImageWidget(Widget):
             return
         if self.parent is None:
             display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(self.state))
+
+    def set_background(self, background):
+        self.background = background
 
 class TextWidget(Widget):
     x = 0

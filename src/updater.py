@@ -66,6 +66,7 @@ class Gui:
         self.weather_icon_widget = widget.ImageWidget(46, 28, 18, 28, align.HAlign.TOP)
         self.ext_temp_widget = widget.ColoredTextWidget(0, 16, ext_temp_color_picker)
         self.weather_icon_widget.add_child(self.ext_temp_widget)
+        self.weather_icon_widget.set_background(self.background)
 
     def repaint(self):
         self.date_widget.repaint()
