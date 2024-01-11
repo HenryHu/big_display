@@ -50,17 +50,19 @@ class WeatherTracker:
         if (self.weather_data_timestamp is None or
             datetime.datetime.now() - self.weather_data_timestamp >
             local_config.WEATHER_UPDATE_TIME):
-            (self.weather_data, self.weather_data_timestamp) = self.fetch_weather()
-            self.need_repaint = True
+            weather_info = self.fetch_weather()
+            if weather_info is not None:
+                (self.weather_data, self.weather_data_timestamp) = weather_info
+                self.need_repaint = True
 
         if not self.need_repaint:
             return
 
-        try:
-            if self.weather_data is None:
-                logging.error("fail to get weather")
-                return
+        if self.weather_data is None:
+            logging.error("fail to get weather")
+            return
 
+        try:
             icon_url = self.weather_data['current']['condition']['icon']
             req = requests.get(f"http:{icon_url}", timeout=local_config.WEATHER_TIMEOUT)
             icon_raw = req.content
