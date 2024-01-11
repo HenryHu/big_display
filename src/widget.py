@@ -68,14 +68,22 @@ class ImageWidget(Widget):
         self.background = None
 
     def paint(self, x, y, w, h):
-        if self.state is None:
+        canvas = self.paint_full()
+        if canvas is None:
             return None
-        copy = self.state
         dx = x - self.x
         dy = y - self.y
-        return copy.crop((dx, dy, dx + w, dy + h))
+        return canvas.crop((dx, dy, dx + w, dy + h))
 
     def update(self, img: Image):
+        self.state = img.copy()
+        self.repaint()
+        return True
+
+    def paint_full(self):
+        if self.state is None:
+            return None
+
         canvas = imagelib.create(self.w, self.h)
 
         if self.background is not None:
@@ -83,24 +91,21 @@ class ImageWidget(Widget):
             if background is not None:
                 canvas = background
 
-        scaled = imagelib.scale(img, self.w, self.h, self.halign, self.valign)
+        scaled = imagelib.scale(self.state, self.w, self.h, self.halign, self.valign)
         canvas.alpha_composite(scaled)
         for child in self.children:
             child.render(canvas)
 
-        self.state = canvas
+        return canvas
+
+    def repaint(self):
         if self.parent is None:
+            canvas = self.paint_full()
+            if canvas is None:
+                return
             while not display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(canvas)):
                 logging.warning("retrying bitmap draw")
                 time.sleep(1)
-
-        return True
-
-    def repaint(self):
-        if self.state is None:
-            return
-        if self.parent is None:
-            display.bitmap(self.x, self.y, self.w, self.h, imagelib.to_565(self.state))
 
     def set_background(self, background):
         self.background = background
