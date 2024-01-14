@@ -19,8 +19,10 @@ class Gui:
     def __init__(self):
         self.background = widget.ImageWidget(0, 0)
 
-        self.date_widget = widget.TextWithDotWidget(1, 0, widget.ColorPicker())
-        self.wday_widget = widget.TextWidget(0, 56)
+        self.date_widget = widget.TextWithDotWidget(1, 0, widget.ColorPicker(),
+                                                    widget.TextWidget)
+        self.wday_widget = widget.TransparentTextWidget(0, 55)
+        self.wday_widget.set_background(self.background)
 
         self.hour_widget = widget.TextWidget(38, 0)
         self.time_dot1_widget = widget.DotWidget(50, 3)
@@ -42,14 +44,17 @@ class Gui:
             35: (252, 82, 3),
             40: (252, 15, 3),
         })
-        self.temp_widget = widget.TextWithDotWidget(1, 8, temp_color_picker)
+        self.temp_widget = widget.TextWithDotWidget(1, 8, temp_color_picker,
+                                                    widget.TransparentTextWidget)
+        self.temp_widget.set_background(self.background)
         self.humid_widget = widget.TextWithDotWidget(38, 8, widget.RangedColorPicker({
             10: (255, 0, 0),
             20: (0, 255, 255),
             70: (0, 255, 0),
             90: (255, 255, 0),
             100: (0, 0, 255),
-        }))
+        }), widget.TransparentTextWidget)
+        self.humid_widget.set_background(self.background)
 
         ext_temp_color_picker = widget.RangedColorPicker({
             0: (3, 152, 252),
