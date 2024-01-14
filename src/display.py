@@ -32,6 +32,10 @@ def text(x, y, t, r, g, b):
         return False
 
 def bitmap(x, y, w, h, data):
+    if len(data) < w * h * 2:
+        logging.error("insufficient data for image: (%d x %d), data len %d",
+                      w, h, len(data))
+        return False
     logging.info("draw bitmap at (%d, %d) size (%d, %d)", x, y, w ,h)
     try:
         r = requests.post(
