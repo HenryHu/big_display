@@ -107,6 +107,7 @@ class TransparentTextWidget(Widget):
     CHAR_HEIGHT = 8
     CHAR_WIDTH = 6
     CROP_HEAD = 2
+    SHADOW_COLOR = (0, 0, 0)
 
     def __init__(self, x:int, y:int):
         Widget.__init__(self, x, y)
@@ -115,7 +116,7 @@ class TransparentTextWidget(Widget):
         self.font = ImageFont.load(local_config.FONT_PATH)
         self.background = None
         self.w = 0
-        self.h = self.CHAR_HEIGHT
+        self.h = self.CHAR_HEIGHT + 1
 
     def update(self, text:str, r:int=255, g:int=255, b:int=255):
         if text != self.text or (r, g, b) != self.color:
@@ -134,6 +135,7 @@ class TransparentTextWidget(Widget):
                 canvas.paste(background, (0, self.CROP_HEAD))
 
         draw = ImageDraw.Draw(canvas)
+        draw.text((1, 1), self.text, fill=self.SHADOW_COLOR, font=self.font, align='left')
         draw.text((0, 0), self.text, fill=self.color, font=self.font, align='left')
 
         return canvas.crop((0, self.CROP_HEAD, self.w, canvas_h))
