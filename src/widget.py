@@ -129,9 +129,9 @@ class TransparentTextWidget(Widget):
         canvas = imagelib.create(self.w, canvas_h)
 
         if self.background is not None:
-            background = self.background.paint(self.x, self.y, self.w, canvas_h)
+            background = self.background.paint(self.x, self.y, self.w, self.h)
             if background is not None:
-                canvas = background
+                canvas.paste(background, (0, self.CROP_HEAD))
 
         draw = ImageDraw.Draw(canvas)
         draw.text((0, 0), self.text, fill=self.color, font=self.font, align='left')
