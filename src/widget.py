@@ -136,6 +136,8 @@ class TransparentTextWidget(Widget):
 
         draw = ImageDraw.Draw(canvas)
         draw.text((1, 1), self.text, fill=self.SHADOW_COLOR, font=self.font, align='left')
+        draw.text((0, 1), self.text, fill=self.SHADOW_COLOR, font=self.font, align='left')
+        draw.text((1, 0), self.text, fill=self.SHADOW_COLOR, font=self.font, align='left')
         draw.text((0, 0), self.text, fill=self.color, font=self.font, align='left')
 
         return canvas.crop((0, self.CROP_HEAD, self.w, canvas_h))
